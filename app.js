@@ -1,99 +1,25 @@
 // ─────────────────────────────────────────────
 //  Flynn Zito War Room — app.js
-//  Quotes + Charts: Yahoo Finance via CORS proxy
-//  News: Finnhub API
+//  Quotes: Finnhub direct (no proxy, instant)
+//  Chart:  TradingView embedded widget (real-time)
+//  News:   Finnhub direct
 // ─────────────────────────────────────────────
 
-const FINNHUB_BASE = "https://finnhub.io/api/v1";
-const FINNHUB_KEY  = CONFIG.FINNHUB_API_KEY;
-const PROXY        = "https://api.allorigins.win/get?url=";
+const FH  = "https://finnhub.io/api/v1";
+const KEY = CONFIG.FINNHUB_API_KEY;
 
-let priceChart          = null;
-let currentChartSymbol  = "%5EGSPC";
-let currentChartLabel   = "^GSPC";
-let currentRange        = 7;
-let countdownTimer      = null;
-let secondsLeft         = CONFIG.REFRESH_INTERVAL_MS / 1000;
+let currentTV    = CONFIG.CHART_TICKERS[0].tv;
+let countdownTimer = null;
+let secondsLeft    = CONFIG.REFRESH_INTERVAL_MS / 1000;
 
-// ── Utility ────────────────────────────────────
+// ── Utility ─────────────────────────────────────
 
-function fmt(n, decimals = 2) {
+function fmt(n, d = 2) {
   if (n == null || isNaN(n)) return "—";
-  return Number(n).toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+  return Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
-function fmtAuto(n) {
-  // No decimals for large index values, 2 decimals for stocks/ETFs
-  if (n == null || isNaN(n)) return "—";
-  if (n >= 1000) return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function tsToDate(ts) { return new Date(ts * 1000); }
-
-// ── Yahoo Finance fetch ─────────────────────────
-
-async function yahooFetch(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
-  try {
-    const res  = await fetch(PROXY + encodeURIComponent(url));
-    const wrap = await res.json();
-    if (!wrap?.contents) return null;
-    const json   = JSON.parse(wrap.contents);
-    const result = json?.chart?.result?.[0];
-    if (!result) return null;
-    const meta = result.meta;
-    return {
-      price:     meta.regularMarketPrice,
-      prevClose: meta.chartPreviousClose || meta.previousClose,
-      open:      meta.regularMarketOpen,
-      high:      meta.regularMarketDayHigh,
-      low:       meta.regularMarketDayLow,
-      symbol:    meta.symbol,
-    };
-  } catch (e) {
-    console.warn("yahooFetch error:", symbol, e);
-    return null;
-  }
-}
-
-async function yahooCandles(symbol, days) {
-  const intervalMap = { 7: "1h", 30: "1d", 90: "1d", 365: "1wk" };
-  const rangeMap    = { 7: "5d", 30: "1mo", 90: "3mo", 365: "1y" };
-  const interval    = intervalMap[days] || "1d";
-  const range       = rangeMap[days]    || "1mo";
-
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=false`;
-  try {
-    const res  = await fetch(PROXY + encodeURIComponent(url));
-    const wrap = await res.json();
-    if (!wrap?.contents) return null;
-    const json   = JSON.parse(wrap.contents);
-    const result = json?.chart?.result?.[0];
-    if (!result?.timestamp) return null;
-    const timestamps = result.timestamp;
-    const closes     = result.indicators.quote[0].close;
-    const filtered   = timestamps
-      .map((t, i) => ({ t, c: closes[i] }))
-      .filter(x => x.c != null);
-    return filtered.length ? filtered : null;
-  } catch (e) {
-    console.warn("yahooCandles error:", symbol, e);
-    return null;
-  }
-}
-
-// ── Finnhub news ────────────────────────────────
-
-async function fetchNews() {
-  const res = await fetch(`${FINNHUB_BASE}/news?category=general&minId=0&token=${FINNHUB_KEY}`);
-  return res.json();
-}
-
-// ── Clock ──────────────────────────────────────
+// ── Clock ────────────────────────────────────────
 
 function startClock() {
   function tick() {
@@ -113,208 +39,219 @@ function startCountdown() {
   secondsLeft = CONFIG.REFRESH_INTERVAL_MS / 1000;
   countdownTimer = setInterval(() => {
     secondsLeft--;
-    document.getElementById("countdown").textContent = secondsLeft;
+    const el = document.getElementById("countdown");
+    if (el) el.textContent = secondsLeft;
     if (secondsLeft <= 0) secondsLeft = CONFIG.REFRESH_INTERVAL_MS / 1000;
   }, 1000);
 }
 
-// ── Market status ──────────────────────────────
+// ── Market status ────────────────────────────────
 
 function updateMarketStatus() {
   const el  = document.getElementById("market-status");
+  if (!el) return;
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const et  = new Date(utc - 4 * 3600000); // EDT
-  const totalMin = et.getHours() * 60 + et.getMinutes();
+  const et  = new Date(utc - 4 * 3600000);
+  const min = et.getHours() * 60 + et.getMinutes();
   const day = et.getDay();
-  if (day >= 1 && day <= 5 && totalMin >= 570 && totalMin < 960) {
-    el.textContent = "Market Open"; el.className = "panel-badge badge-open";
+  if (day >= 1 && day <= 5 && min >= 570 && min < 960) {
+    el.textContent = "Market Open";  el.className = "panel-badge badge-open";
   } else {
     el.textContent = "Market Closed"; el.className = "panel-badge badge-closed";
   }
 }
 
-// ── Indices bar ────────────────────────────────
+// ── Finnhub quote (direct, no proxy) ────────────
 
-async function loadIndices() {
-  await Promise.all(
-    CONFIG.INDEX_TICKERS.map(async (idx) => {
-      try {
-        const q    = await yahooFetch(idx.symbol);
-        const card = document.getElementById(`idx-${idx.display}`);
-        if (!card || !q) return;
-
-        const chg  = q.price - q.prevClose;
-        const pct  = (chg / q.prevClose) * 100;
-        const dir  = chg >= 0 ? "up" : "down";
-        const sign = chg >= 0 ? "+" : "";
-
-        card.querySelector(".idx-price").textContent = fmtAuto(q.price);
-        const chgEl = card.querySelector(".idx-change");
-        chgEl.textContent = `${sign}${fmtAuto(Math.abs(chg))} (${sign}${fmt(pct)}%)`;
-        if (chg < 0) chgEl.textContent = `-${fmtAuto(Math.abs(chg))} (${fmt(pct)}%)`;
-        chgEl.className = `idx-change ${dir}`;
-        card.classList.remove("card-up", "card-down");
-        card.classList.add(dir === "up" ? "card-up" : "card-down");
-      } catch (e) {
-        console.warn("Index fetch failed:", idx.display, e);
-      }
-    })
-  );
+async function fhQuote(symbol) {
+  const res = await fetch(`${FH}/quote?symbol=${symbol}&token=${KEY}`);
+  return res.json();
 }
 
-// ── Watchlist ──────────────────────────────────
+// ── Indices bar — each card loads independently ──
 
-async function loadWatchlist() {
+function buildIndicesBar() {
+  const row = document.getElementById("indices-row");
+  row.innerHTML = "";
+  CONFIG.INDEX_TICKERS.forEach((idx) => {
+    const div = document.createElement("div");
+    div.className = "index-card loading";
+    div.id = `idx-${idx.symbol}`;
+    div.innerHTML = `
+      <div class="idx-name">${idx.label} <span class="idx-ticker">${idx.sub}</span></div>
+      <div class="idx-price"><div class="shimmer shimmer-sm"></div></div>
+      <div class="idx-change"><div class="shimmer shimmer-xs"></div></div>
+    `;
+    row.appendChild(div);
+  });
+
+  // Each card fetches and renders independently — no waiting on others
+  CONFIG.INDEX_TICKERS.forEach(async (idx) => {
+    try {
+      const q   = await fhQuote(idx.symbol);
+      const card = document.getElementById(`idx-${idx.symbol}`);
+      if (!card || q.c == null) return;
+      const chg  = q.c - q.pc;
+      const pct  = (chg / q.pc) * 100;
+      const dir  = chg >= 0 ? "up" : "down";
+      const sign = chg >= 0 ? "+" : "";
+      card.classList.remove("loading");
+      card.querySelector(".idx-price").textContent = `$${fmt(q.c)}`;
+      const chgEl = card.querySelector(".idx-change");
+      chgEl.textContent = `${sign}$${fmt(Math.abs(chg))} (${sign}${fmt(pct)}%)`;
+      chgEl.className   = `idx-change ${dir}`;
+      card.classList.add(dir === "up" ? "card-up" : "card-down");
+    } catch (e) {
+      console.warn("Index failed:", idx.symbol, e);
+    }
+  });
+}
+
+function refreshIndices() {
+  CONFIG.INDEX_TICKERS.forEach(async (idx) => {
+    try {
+      const q    = await fhQuote(idx.symbol);
+      const card = document.getElementById(`idx-${idx.symbol}`);
+      if (!card || q.c == null) return;
+      const chg  = q.c - q.pc;
+      const pct  = (chg / q.pc) * 100;
+      const dir  = chg >= 0 ? "up" : "down";
+      const sign = chg >= 0 ? "+" : "";
+      card.querySelector(".idx-price").textContent = `$${fmt(q.c)}`;
+      const chgEl = card.querySelector(".idx-change");
+      chgEl.textContent = `${sign}$${fmt(Math.abs(chg))} (${sign}${fmt(pct)}%)`;
+      chgEl.className   = `idx-change ${dir}`;
+      card.classList.remove("card-up", "card-down");
+      card.classList.add(dir === "up" ? "card-up" : "card-down");
+    } catch (e) { /* silent */ }
+  });
+}
+
+// ── TradingView chart widget ─────────────────────
+
+function loadTVChart(tvSymbol) {
+  const wrap = document.getElementById("tv-chart-wrap");
+  wrap.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.id = "tv_chart_container";
+  wrap.appendChild(container);
+
+  const script = document.createElement("script");
+  script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+  script.async = true;
+  script.innerHTML = JSON.stringify({
+    autosize: true,
+    symbol: tvSymbol,
+    interval: "D",
+    timezone: "America/New_York",
+    theme: "dark",
+    style: "2",
+    locale: "en",
+    backgroundColor: "#0a1c35",
+    gridColor: "rgba(74,144,217,0.06)",
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    calendar: false,
+    support_host: "https://www.tradingview.com",
+  });
+  container.appendChild(script);
+}
+
+// ── Watchlist — rows appear as each quote arrives ─
+
+function buildWatchlist() {
   const tbody = document.getElementById("watchlist-body");
   updateMarketStatus();
-  const rows = [];
 
-  await Promise.all(
-    CONFIG.WATCHLIST.map(async (item) => {
-      try {
-        const q = await yahooFetch(item.ticker);
-        if (!q) return;
-        const chg = q.price - q.prevClose;
-        const pct = (chg / q.prevClose) * 100;
-        rows.push({ item, q, chg, pct });
-      } catch (e) {
-        console.warn("Watchlist error:", item.ticker, e);
-      }
-    })
-  );
-
-  rows.sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
+  // First pass: create placeholder rows immediately
   tbody.innerHTML = "";
-
-  rows.forEach(({ item, q, chg, pct }) => {
-    const dir  = chg >= 0 ? "up" : "down";
-    const sign = chg >= 0 ? "+" : "";
-    const sigClass = item.signal === "buy" ? "sig-buy" : item.signal === "hold" ? "sig-hold" : "sig-watch";
+  CONFIG.WATCHLIST.forEach((item) => {
     const tr = document.createElement("tr");
+    tr.id = `wl-${item.ticker}`;
     tr.innerHTML = `
       <td class="td-ticker">${item.ticker}</td>
       <td class="td-name">${item.name}</td>
-      <td class="td-price">$${fmt(q.price)}</td>
-      <td class="td-change ${dir}">${sign}$${fmt(Math.abs(chg))}</td>
-      <td class="td-pct ${dir}">${sign}${fmt(pct)}%</td>
-      <td class="td-hl">$${fmt(q.high)}</td>
-      <td class="td-hl">$${fmt(q.low)}</td>
-      <td class="td-hl">$${fmt(q.open)}</td>
-      <td><span class="signal-pill ${sigClass}">${item.signal}</span></td>
+      <td colspan="6"><div class="shimmer" style="height:14px;border-radius:4px;"></div></td>
+      <td><span class="signal-pill ${item.signal === "buy" ? "sig-buy" : item.signal === "hold" ? "sig-hold" : "sig-watch"}">${item.signal}</span></td>
     `;
     tbody.appendChild(tr);
   });
-}
 
-// ── Price Chart ────────────────────────────────
-
-async function loadChart(symbol, label, days) {
-  const metaTicker = document.getElementById("chart-ticker-label");
-  const metaPrice  = document.getElementById("chart-current-price");
-  const metaChg    = document.getElementById("chart-price-change");
-
-  metaTicker.textContent = label;
-  metaPrice.textContent  = "Loading…";
-  metaChg.textContent    = "";
-
-  const [candles, quote] = await Promise.all([
-    yahooCandles(symbol, days),
-    yahooFetch(symbol),
-  ]);
-
-  if (!candles || !quote) {
-    metaPrice.textContent = "No data available";
-    metaChg.textContent   = "";
-    return;
-  }
-
-  const labels = candles.map(({ t }) => {
-    const d = tsToDate(t);
-    return days <= 7
-      ? d.toLocaleTimeString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  });
-  const prices = candles.map(x => x.c);
-
-  const chg       = quote.price - quote.prevClose;
-  const pct       = (chg / quote.prevClose) * 100;
-  const isUp      = chg >= 0;
-  const sign      = isUp ? "+" : "";
-  const lineColor = isUp ? "#3ec97e" : "#e05a5a";
-  const fillColor = isUp ? "rgba(62,201,126,0.08)" : "rgba(224,90,90,0.08)";
-
-  metaPrice.textContent = fmtAuto(quote.price);
-  metaChg.textContent   = `${sign}${fmtAuto(Math.abs(chg))} (${sign}${fmt(pct)}%)`;
-  if (!isUp) metaChg.textContent = `-${fmtAuto(Math.abs(chg))} (${fmt(pct)}%)`;
-  metaChg.className = `change-pill ${isUp ? "up" : "down"}`;
-
-  if (priceChart) priceChart.destroy();
-  const ctx = document.getElementById("priceChart").getContext("2d");
-  priceChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        data: prices,
-        borderColor: lineColor,
-        borderWidth: 2,
-        backgroundColor: fillColor,
-        fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: lineColor,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { intersect: false, mode: "index" },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "#0a2240",
-          titleColor: "#7aa8d4",
-          bodyColor: "#e8f0f8",
-          borderColor: "#1e4070",
-          borderWidth: 1,
-          padding: 10,
-          callbacks: { label: (ctx) => ` ${fmtAuto(ctx.parsed.y)}` },
-        },
-      },
-      scales: {
-        x: {
-          ticks: { color: "#5a7fa8", font: { family: "'DM Mono', monospace", size: 11 }, maxTicksLimit: 8, maxRotation: 0 },
-          grid: { color: "rgba(255,255,255,0.04)" },
-        },
-        y: {
-          position: "right",
-          ticks: { color: "#5a7fa8", font: { family: "'DM Mono', monospace", size: 11 }, callback: (v) => fmtAuto(v) },
-          grid: { color: "rgba(255,255,255,0.04)" },
-        },
-      },
-    },
+  // Each row fetches and fills independently
+  CONFIG.WATCHLIST.forEach(async (item) => {
+    try {
+      const q   = await fhQuote(item.ticker);
+      const tr  = document.getElementById(`wl-${item.ticker}`);
+      if (!tr || q.c == null) return;
+      const chg  = q.c - q.pc;
+      const pct  = (chg / q.pc) * 100;
+      const dir  = chg >= 0 ? "up" : "down";
+      const sign = chg >= 0 ? "+" : "";
+      const sigClass = item.signal === "buy" ? "sig-buy" : item.signal === "hold" ? "sig-hold" : "sig-watch";
+      tr.innerHTML = `
+        <td class="td-ticker">${item.ticker}</td>
+        <td class="td-name">${item.name}</td>
+        <td class="td-price">$${fmt(q.c)}</td>
+        <td class="td-change ${dir}">${sign}$${fmt(Math.abs(chg))}</td>
+        <td class="td-pct ${dir}">${sign}${fmt(pct)}%</td>
+        <td class="td-hl">$${fmt(q.h)}</td>
+        <td class="td-hl">$${fmt(q.l)}</td>
+        <td class="td-hl">$${fmt(q.o)}</td>
+        <td><span class="signal-pill ${sigClass}">${item.signal}</span></td>
+      `;
+    } catch (e) {
+      console.warn("Watchlist row failed:", item.ticker, e);
+    }
   });
 }
 
-// ── News ───────────────────────────────────────
+function refreshWatchlist() {
+  CONFIG.WATCHLIST.forEach(async (item) => {
+    try {
+      const q  = await fhQuote(item.ticker);
+      const tr = document.getElementById(`wl-${item.ticker}`);
+      if (!tr || q.c == null) return;
+      const chg  = q.c - q.pc;
+      const pct  = (chg / q.pc) * 100;
+      const dir  = chg >= 0 ? "up" : "down";
+      const sign = chg >= 0 ? "+" : "";
+      const sigClass = item.signal === "buy" ? "sig-buy" : item.signal === "hold" ? "sig-hold" : "sig-watch";
+      tr.innerHTML = `
+        <td class="td-ticker">${item.ticker}</td>
+        <td class="td-name">${item.name}</td>
+        <td class="td-price">$${fmt(q.c)}</td>
+        <td class="td-change ${dir}">${sign}$${fmt(Math.abs(chg))}</td>
+        <td class="td-pct ${dir}">${sign}${fmt(pct)}%</td>
+        <td class="td-hl">$${fmt(q.h)}</td>
+        <td class="td-hl">$${fmt(q.l)}</td>
+        <td class="td-hl">$${fmt(q.o)}</td>
+        <td><span class="signal-pill ${sigClass}">${item.signal}</span></td>
+      `;
+    } catch (e) { /* silent */ }
+  });
+}
+
+// ── News ─────────────────────────────────────────
 
 async function loadNews() {
   const list = document.getElementById("news-list");
   try {
-    const articles = await fetchNews();
+    const res      = await fetch(`${FH}/news?category=general&minId=0&token=${KEY}`);
+    const articles = await res.json();
     if (!articles?.length) { list.innerHTML = "<div class='news-loading'>No news available.</div>"; return; }
     list.innerHTML = "";
     articles.slice(0, CONFIG.NEWS_COUNT).forEach((a) => {
       const age    = Math.floor((Date.now() / 1000 - a.datetime) / 3600);
       const ageStr = age < 1 ? "< 1h ago" : age < 24 ? `${age}h ago` : `${Math.floor(age / 24)}d ago`;
-      const div = document.createElement("div");
+      const div    = document.createElement("div");
       div.className = "news-item";
       div.innerHTML = `
         <div class="news-source">${a.source || "News"} <span class="news-age">${ageStr}</span></div>
         <a class="news-headline" href="${a.url}" target="_blank" rel="noopener">${a.headline}</a>
-        <div class="news-summary">${(a.summary || "").slice(0, 120)}${a.summary?.length > 120 ? "…" : ""}</div>
+        <div class="news-summary">${(a.summary || "").slice(0, 120)}${(a.summary?.length > 120) ? "…" : ""}</div>
       `;
       list.appendChild(div);
     });
@@ -323,75 +260,56 @@ async function loadNews() {
   }
 }
 
-// ── Last updated ───────────────────────────────
-
-function setLastUpdated() {
-  document.getElementById("last-updated").textContent =
-    "Last updated: " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
-// ── Full refresh ───────────────────────────────
-
-async function refreshAll() {
-  await Promise.all([loadIndices(), loadWatchlist(), loadChart(currentChartSymbol, currentChartLabel, currentRange), loadNews()]);
-  setLastUpdated();
-}
-
-// ── Build chart dropdown from config ───────────
+// ── Chart dropdown ────────────────────────────────
 
 function buildChartDropdown() {
   const sel = document.getElementById("ticker-select");
   sel.innerHTML = "";
   CONFIG.CHART_TICKERS.forEach((t) => {
     const opt = document.createElement("option");
-    opt.value = t.symbol;
+    opt.value       = t.tv;
     opt.textContent = t.label;
-    if (t.symbol === currentChartSymbol) opt.selected = true;
+    if (t.tv === currentTV) opt.selected = true;
     sel.appendChild(opt);
   });
 }
 
-// ── Build indices bar from config ───────────────
+document.getElementById("ticker-select").addEventListener("change", (e) => {
+  currentTV = e.target.value;
+  loadTVChart(currentTV);
+});
 
-function buildIndicesBar() {
-  const row = document.getElementById("indices-row");
-  row.innerHTML = "";
-  CONFIG.INDEX_TICKERS.forEach((idx) => {
-    const div = document.createElement("div");
-    div.className = "index-card";
-    div.id = `idx-${idx.display}`;
-    div.innerHTML = `
-      <div class="idx-name">${idx.label} <span class="idx-ticker">${idx.display}</span></div>
-      <div class="idx-price">—</div>
-      <div class="idx-change">—</div>
-    `;
-    row.appendChild(div);
+// ── Last updated ──────────────────────────────────
+
+function setLastUpdated() {
+  const el = document.getElementById("last-updated");
+  if (el) el.textContent = "Last updated: " + new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
   });
 }
 
-// ── Controls ───────────────────────────────────
+// ── Periodic refresh (quotes + news only, chart stays) ──
 
-document.getElementById("ticker-select").addEventListener("change", (e) => {
-  const opt = e.target.options[e.target.selectedIndex];
-  currentChartSymbol = e.target.value;
-  currentChartLabel  = opt.textContent.split("—")[0].trim();
-  loadChart(currentChartSymbol, currentChartLabel, currentRange);
-});
+function periodicRefresh() {
+  refreshIndices();
+  refreshWatchlist();
+  loadNews();
+  setLastUpdated();
+  updateMarketStatus();
+}
 
-document.querySelectorAll(".range-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentRange = parseInt(btn.dataset.range, 10);
-    loadChart(currentChartSymbol, currentChartLabel, currentRange);
-  });
-});
+// ── Boot ──────────────────────────────────────────
 
-// ── Boot ───────────────────────────────────────
-
-buildIndicesBar();
 buildChartDropdown();
+buildIndicesBar();
+buildWatchlist();
+loadTVChart(currentTV);
+loadNews();
+setLastUpdated();
 startClock();
 startCountdown();
-refreshAll();
-setInterval(() => { refreshAll(); startCountdown(); }, CONFIG.REFRESH_INTERVAL_MS);
+
+setInterval(() => {
+  periodicRefresh();
+  startCountdown();
+}, CONFIG.REFRESH_INTERVAL_MS);
