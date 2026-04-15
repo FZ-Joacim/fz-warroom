@@ -268,43 +268,13 @@ main { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
 .range-btn:hover { background: rgba(74,144,217,0.1); color: var(--text-1); }
 .range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-.chart-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 10px 16px 0;
-}
-
-#chart-ticker-label {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--accent-lt);
-  font-weight: 500;
-}
-
-#chart-current-price {
-  font-family: var(--font-mono);
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--text-1);
-}
-
-.change-pill {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.change-pill.up   { color: var(--up);   background: rgba(62,201,126,0.1); }
-.change-pill.down { color: var(--down); background: rgba(224,90,90,0.1); }
-
-.chart-wrap {
-  position: relative;
-  height: 300px;
-  padding: 12px 16px 16px;
-}
+.tv-chart-wrap { height: 400px; overflow: hidden; }
+.tv-chart-wrap #tv_chart_container { width: 100%; height: 100%; }
+.shimmer { background: linear-gradient(90deg, var(--navy-3) 25%, var(--navy-4) 50%, var(--navy-3) 75%); background-size: 200% 100%; animation: shimmer-anim 1.4s infinite; border-radius: 4px; height: 18px; width: 80%; display: inline-block; }
+.shimmer-sm { height: 22px; width: 70%; }
+.shimmer-xs { height: 11px; width: 55%; margin-top: 4px; }
+@keyframes shimmer-anim { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.index-card.loading .idx-price, .index-card.loading .idx-change { display: block; }
 
 /* ── News panel ──────────────────────────────── */
 
