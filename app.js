@@ -79,13 +79,22 @@ async function fetchQuote(ticker) {
 }
 
 async function fetchCandles(ticker, days) {
-  const to   = nowUnix();
-  const from = daysAgoUnix(days);
-  const resolution = days <= 7 ? "60" : days <= 30 ? "D" : "W";
-  const res = await fetch(
-    `${BASE}/stock/candle?symbol=${ticker}&resolution=${resolution}&from=${from}&to=${to}&token=${KEY}`
-  );
-  return res.json();
+  const interval  = days <= 7  ? "1h"  : days <= 30 ? "1d" : "1wk";
+  const rangeMap  = { 7: "5d", 30: "1mo", 90: "3mo", 365: "1y" };
+  const range     = rangeMap[days] || "1mo";
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${range}&includePrePost=false`;
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) return { s: "no_data" };
+    const timestamps = result.timestamp;
+    const closes     = result.indicators.quote[0].close;
+    const filtered   = timestamps.map((t, i) => ({ t, c: closes[i] })).filter(x => x.c != null);
+    return { s: "ok", t: filtered.map(x => x.t), c: filtered.map(x => x.c) };
+  } catch (e) {
+    return { s: "error" };
+  }
 }
 
 async function fetchNews() {
