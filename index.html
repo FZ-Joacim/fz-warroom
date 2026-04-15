@@ -30,39 +30,8 @@
 
   <main>
 
-    <!-- INDICES ROW -->
-    <section class="indices-row" id="indices-row">
-      <div class="index-card" id="idx-SPY">
-        <div class="idx-name">S&amp;P 500 <span class="idx-ticker">SPY</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-      <div class="index-card" id="idx-DIA">
-        <div class="idx-name">Dow Jones <span class="idx-ticker">DIA</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-      <div class="index-card" id="idx-QQQ">
-        <div class="idx-name">Nasdaq <span class="idx-ticker">QQQ</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-      <div class="index-card" id="idx-IWF">
-        <div class="idx-name">Russell 1000 Gr <span class="idx-ticker">IWF</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-      <div class="index-card" id="idx-VYM">
-        <div class="idx-name">High Div Yield <span class="idx-ticker">VYM</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-      <div class="index-card" id="idx-AAPL">
-        <div class="idx-name">Apple <span class="idx-ticker">AAPL</span></div>
-        <div class="idx-price">—</div>
-        <div class="idx-change">—</div>
-      </div>
-    </section>
+    <!-- INDICES ROW — built dynamically by app.js -->
+    <section class="indices-row" id="indices-row"></section>
 
     <!-- MAIN GRID -->
     <div class="main-grid">
@@ -72,16 +41,7 @@
         <div class="panel-header">
           <span class="panel-title">Price Chart</span>
           <div class="chart-controls">
-            <select id="ticker-select">
-              <option value="SPY">SPY — S&amp;P 500 ETF</option>
-              <option value="DIA">DIA — Dow Jones ETF</option>
-              <option value="QQQ">QQQ — Nasdaq ETF</option>
-              <option value="IWF">IWF — Russell 1000 Gr</option>
-              <option value="VYM">VYM — High Div Yield</option>
-              <option value="PRF">PRF — RAFI US 1000</option>
-              <option value="AAPL">AAPL — Apple</option>
-              <option value="FLQM">FLQM — Franklin Mid Cap</option>
-            </select>
+            <select id="ticker-select"></select>
             <div class="range-btns">
               <button class="range-btn active" data-range="7">1W</button>
               <button class="range-btn" data-range="30">1M</button>
