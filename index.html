@@ -6,7 +6,6 @@
   <title>Flynn Zito — Analyst War Room</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -18,45 +17,34 @@
       <div class="logo-mark">FZ</div>
       <div>
         <div class="header-title">Flynn Zito Capital Management</div>
-        <div class="header-sub">Analyst War Room <span class="live-dot"></span> <span id="live-label">LIVE</span></div>
+        <div class="header-sub">Analyst War Room <span class="live-dot"></span> <span>LIVE</span></div>
       </div>
     </div>
     <div class="header-right">
       <div class="clock" id="clock">--:--:--</div>
       <div class="date" id="dateline">---</div>
-      <div class="refresh-info">Auto-refresh <span id="countdown">60</span>s</div>
+      <div class="refresh-info">Auto-refresh <span id="countdown">30</span>s</div>
     </div>
   </header>
 
   <main>
 
-    <!-- INDICES ROW — built dynamically by app.js -->
+    <!-- INDICES ROW — populated by JS -->
     <section class="indices-row" id="indices-row"></section>
 
     <!-- MAIN GRID -->
     <div class="main-grid">
 
-      <!-- CHART PANEL -->
+      <!-- CHART PANEL — TradingView widget -->
       <div class="panel chart-panel">
         <div class="panel-header">
           <span class="panel-title">Price Chart</span>
           <div class="chart-controls">
             <select id="ticker-select"></select>
-            <div class="range-btns">
-              <button class="range-btn active" data-range="7">1W</button>
-              <button class="range-btn" data-range="30">1M</button>
-              <button class="range-btn" data-range="90">3M</button>
-              <button class="range-btn" data-range="365">1Y</button>
-            </div>
           </div>
         </div>
-        <div class="chart-meta" id="chart-meta">
-          <span id="chart-ticker-label">SPY</span>
-          <span id="chart-current-price">—</span>
-          <span id="chart-price-change" class="change-pill">—</span>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="priceChart"></canvas>
+        <div class="tv-chart-wrap" id="tv-chart-wrap">
+          <!-- TradingView widget injected here by JS -->
         </div>
       </div>
 
@@ -94,7 +82,12 @@
               <th>Signal</th>
             </tr>
           </thead>
-          <tbody id="watchlist-body"></tbody>
+          <tbody id="watchlist-body">
+            <!-- shimmer rows -->
+            <tr class="shimmer-row"><td colspan="9"><div class="shimmer"></div></td></tr>
+            <tr class="shimmer-row"><td colspan="9"><div class="shimmer"></div></td></tr>
+            <tr class="shimmer-row"><td colspan="9"><div class="shimmer"></div></td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -103,7 +96,7 @@
 
   <footer>
     <span>Flynn Zito Capital Management &mdash; Internal Use Only</span>
-    <span id="last-updated">Last updated: —</span>
+    <span id="last-updated">Updating...</span>
   </footer>
 
   <script src="config.js"></script>
