@@ -1,23 +1,22 @@
 // ─────────────────────────────────────────────
 //  Flynn Zito War Room — config.js
-//  Edit tickers, signals, and refresh interval here
 // ─────────────────────────────────────────────
 
 const CONFIG = {
   FINNHUB_API_KEY: "d7fpi59r01qqb8rh50g0d7fpi59r01qqb8rh50gg",
 
-  // Top indices bar — uses real Yahoo Finance symbols
-  // %5E = encoded ^ for index symbols
+  // Top bar — Finnhub supports these ETF/stock symbols directly
+  // Labels show what index/asset each represents
   INDEX_TICKERS: [
-    { symbol: "%5EGSPC",  label: "S&P 500",       display: "^GSPC"  },
-    { symbol: "%5EDJI",   label: "Dow Jones",      display: "^DJI"   },
-    { symbol: "%5EIXIC",  label: "Nasdaq",         display: "^IXIC"  },
-    { symbol: "%5ERUT",   label: "Russell 2000",   display: "^RUT"   },
-    { symbol: "VYM",      label: "High Div Yield", display: "VYM"    },
-    { symbol: "AAPL",     label: "Apple",          display: "AAPL"   },
+    { symbol: "SPY",  label: "S&P 500",       sub: "via SPY"  },
+    { symbol: "DIA",  label: "Dow Jones",      sub: "via DIA"  },
+    { symbol: "QQQ",  label: "Nasdaq 100",     sub: "via QQQ"  },
+    { symbol: "IWM",  label: "Russell 2000",   sub: "via IWM"  },
+    { symbol: "VYM",  label: "High Div Yield", sub: "VYM"      },
+    { symbol: "AAPL", label: "Apple",          sub: "AAPL"     },
   ],
 
-  // Watchlist — FZ core holdings
+  // Watchlist
   WATCHLIST: [
     { ticker: "SPY",  name: "SPDR S&P 500 ETF",            signal: "hold"  },
     { ticker: "IWF",  name: "iShares Russell 1000 Growth",  signal: "buy"   },
@@ -31,23 +30,20 @@ const CONFIG = {
     { ticker: "BND",  name: "Vanguard Total Bond Market",   signal: "hold"  },
   ],
 
-  // Chart dropdown — what tickers are available to chart
+  // TradingView chart symbols — these show real index values
   CHART_TICKERS: [
-    { symbol: "%5EGSPC", label: "^GSPC — S&P 500 Index"       },
-    { symbol: "%5EDJI",  label: "^DJI  — Dow Jones Index"      },
-    { symbol: "%5EIXIC", label: "^IXIC — Nasdaq Composite"     },
-    { symbol: "SPY",     label: "SPY   — S&P 500 ETF"          },
-    { symbol: "IWF",     label: "IWF   — Russell 1000 Growth"  },
-    { symbol: "VYM",     label: "VYM   — High Dividend Yield"  },
-    { symbol: "PRF",     label: "PRF   — RAFI US 1000"         },
-    { symbol: "AAPL",    label: "AAPL  — Apple Inc."           },
-    { symbol: "GLD",     label: "GLD   — Gold ETF"             },
-    { symbol: "AGG",     label: "AGG   — US Agg Bond"          },
+    { tv: "SP:SPX",      label: "S&P 500"           },
+    { tv: "DJ:DJI",      label: "Dow Jones"          },
+    { tv: "NASDAQ:IXIC", label: "Nasdaq Composite"   },
+    { tv: "AMEX:SPY",    label: "SPY — S&P 500 ETF"  },
+    { tv: "AMEX:IWF",    label: "IWF — Russell Gr"   },
+    { tv: "AMEX:VYM",    label: "VYM — High Div"     },
+    { tv: "AMEX:GLD",    label: "GLD — Gold ETF"     },
+    { tv: "AMEX:AGG",    label: "AGG — US Bond"      },
+    { tv: "NASDAQ:AAPL", label: "AAPL — Apple"       },
+    { tv: "NASDAQ:QQQ",  label: "QQQ — Nasdaq ETF"   },
   ],
 
-  // Auto-refresh interval in milliseconds (60000 = 1 min)
-  REFRESH_INTERVAL_MS: 60000,
-
-  // Number of news articles to show
+  REFRESH_INTERVAL_MS: 30000,
   NEWS_COUNT: 12,
 };
